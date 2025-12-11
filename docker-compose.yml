@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  voice-cloner-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voice-cloner-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount uploads and embeddings directories to persist data
+      - ./uploads:/app/uploads
+      - ./embeddings:/app/embeddings
+    environment:
+      - UPLOAD_DIR=/app/uploads
+      - EMBEDDING_DIR=/app/embeddings
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
