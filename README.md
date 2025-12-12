@@ -74,6 +74,10 @@ Alternative docs (ReDoc): `http://localhost:8000/redoc`
 
 ## API Endpoints
 
+### Authentication Endpoints
+
+See [Authentication](#authentication) section above for details.
+
 ### 1. Health Check
 
 **GET** `/health`
@@ -186,9 +190,107 @@ Currently uses in-memory storage (`storage.py`). For production:
 - Store embeddings efficiently (e.g., as numpy arrays or in a vector database)
 - Implement proper file management and cleanup
 
+### Authentication
+
+The API supports Firebase Authentication for React Native apps. Users authenticate with Firebase in the mobile app, and the backend verifies Firebase ID tokens.
+
+#### Setup Firebase Authentication
+
+1. **Get Firebase Service Account Key:**
+   - Go to [Firebase Console](https://console.firebase.google.com/)
+   - Select your project
+   - Go to Project Settings → Service Accounts
+   - Click "Generate New Private Key"
+   - Save the JSON file (e.g., `serviceAccountKey.json`)
+
+2. **Configure Environment Variables:**
+
+   **Option 1: Use Service Account Key File (Development)**
+   ```bash
+   export FIREBASE_CREDENTIALS_PATH="./serviceAccountKey.json"
+   ```
+
+   **Option 2: Use Environment Variables (Production)**
+   ```bash
+   export FIREBASE_PROJECT_ID="your-project-id"
+   export FIREBASE_PRIVATE_KEY_ID="your-private-key-id"
+   export FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+   export FIREBASE_CLIENT_EMAIL="your-service-account@your-project.iam.gserviceaccount.com"
+   export FIREBASE_CLIENT_ID="your-client-id"
+   ```
+
+3. **Set JWT Secret Key:**
+   ```bash
+   export SECRET_KEY="your-super-secret-key-change-this-in-production"
+   ```
+
+#### Authentication Endpoints
+
+**POST** `/api/auth/google/token`
+
+Authenticate with Firebase ID token. This endpoint accepts Firebase ID tokens from your React Native app.
+
+**Request:**
+```json
+{
+  "code": "firebase_id_token",
+  "firebase_token": true
+}
+```
+
+**Response:**
+```json
+{
+  "access_token": "jwt_access_token",
+  "token_type": "bearer",
+  "user": {
+    "id": "user_uid",
+    "email": "user@example.com",
+    "name": "User Name",
+    "picture": "https://...",
+    "provider": "google",
+    "created_at": "2024-01-01T00:00:00"
+  }
+}
+```
+
+**GET** `/api/auth/me`
+
+Get current authenticated user information.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+```json
+{
+  "id": "user_uid",
+  "email": "user@example.com",
+  "name": "User Name",
+  "picture": "https://...",
+  "provider": "google",
+  "created_at": "2024-01-01T00:00:00"
+}
+```
+
+#### Protecting Routes
+
+Use the `get_current_user` dependency to protect routes:
+
+```python
+from app.api.dependencies import get_current_user
+from app.models.storage import UserRecord
+
+@app.get("/protected")
+async def protected_route(user: UserRecord = Depends(get_current_user)):
+    return {"message": f"Hello {user.email}"}
+```
+
 ### Security & Ethics
 
-- Add authentication/authorization (JWT, OAuth2, etc.)
+- ✅ Authentication/authorization with Firebase and JWT
 - Implement rate limiting
 - Add consent validation for voice cloning
 - Consider abuse detection (impersonation, etc.)
@@ -197,6 +299,13 @@ Currently uses in-memory storage (`storage.py`). For production:
 ### Environment Variables
 
 ```bash
+# Authentication
+export SECRET_KEY="your-super-secret-key-change-this-in-production"
+export FIREBASE_CREDENTIALS_PATH="./serviceAccountKey.json"  # Or use env vars below
+# export FIREBASE_PROJECT_ID="your-project-id"
+# export FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# export FIREBASE_CLIENT_EMAIL="your-service-account@your-project.iam.gserviceaccount.com"
+
 # Optional: Customize upload and embedding directories
 export UPLOAD_DIR="./uploads"
 export EMBEDDING_DIR="./embeddings"

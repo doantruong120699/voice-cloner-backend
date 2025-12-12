@@ -53,3 +53,50 @@ class ErrorResponse(BaseModel):
 
     error: str
     detail: Optional[str] = None
+
+
+class TokenResponse(BaseModel):
+    """Response model for authentication tokens."""
+
+    access_token: str
+    token_type: str = "bearer"
+    user: dict
+
+
+class GoogleAuthRequest(BaseModel):
+    """Request model for Google OAuth authentication."""
+
+    code: str = Field(
+        ..., description="Authorization code from Google OAuth or Firebase ID token"
+    )
+    state: Optional[str] = Field(None, description="State parameter for OAuth flow")
+    firebase_token: Optional[bool] = Field(
+        False, description="Whether the token is a Firebase ID token"
+    )
+
+
+class UserResponse(BaseModel):
+    """Response model for user information."""
+
+    id: str
+    email: str
+    name: Optional[str] = None
+    picture: Optional[str] = None
+    provider: str = "google"
+    created_at: datetime
+
+
+class IdTokenRequest(BaseModel):
+    """Request model for ID token verification."""
+
+    idToken: str = Field(..., description="Firebase ID token or Google ID token")
+    is_firebase_token: Optional[bool] = Field(
+        True, description="Whether the token is a Firebase ID token (default: True)"
+    )
+
+
+class VerifyTokenResponse(BaseModel):
+    """Response model for token verification with access and refresh tokens."""
+
+    access_token: str
+    refresh_token: str

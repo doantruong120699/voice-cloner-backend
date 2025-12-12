@@ -1,6 +1,7 @@
 """
 Voice service layer for business logic.
 """
+
 from pathlib import Path
 from typing import Optional, Tuple
 import numpy as np
@@ -18,9 +19,10 @@ from app.utils.file_utils import save_voice_file
 
 class VoiceService:
     """Service for voice-related operations."""
-    
+
     @staticmethod
     async def register_voice(
+        user_id: str,
         file_content: bytes,
         filename: str,
         name: Optional[str] = None,
@@ -28,35 +30,41 @@ class VoiceService:
     ) -> VoiceRecord:
         """
         Register a new voice by processing the uploaded audio file.
-        
+
         Args:
+            user_id: User ID who owns this voice sample
             file_content: Audio file content as bytes
             filename: Original filename
             name: Optional name for the voice
             description: Optional description
-            
+
         Returns:
             VoiceRecord with voice_id and metadata
-            
+
         Raises:
             EmbeddingComputationError: If embedding computation fails
         """
         # Save file to disk
         file_path = save_voice_file(file_content, filename, settings.UPLOAD_DIR)
-        
+
         try:
             # Compute speaker embedding
-            embedding, duration, sample_rate = await compute_speaker_embedding(file_path)
-            
+            embedding, duration, sample_rate = await compute_speaker_embedding(
+                file_path
+            )
+
             # Save embedding path (optional - you may want to save it to disk)
             embedding_path = None
             if embedding is not None:
-                embedding_path = str(settings.EMBEDDING_DIR / f"{Path(file_path).stem}.npy")
+                embedding_path = str(
+                    settings.EMBEDDING_DIR / f"{Path(file_path).stem}.npy"
+                )
                 # In production, save the embedding array
                 # np.save(embedding_path, embedding)
-            
+
             # Store metadata
             record = storage.create(
+                user_id=user_id,
                 filename=filename,
                 file_path=file_path,
                 embedding_path=embedding_path,
@@ -65,26 +73,26 @@ class VoiceService:
                 name=name,
                 description=description,
             )
-            
+
             return record
-            
+
         except Exception as e:
             # Clean up saved file on error
             if Path(file_path).exists():
                 Path(file_path).unlink()
             raise EmbeddingComputationError(str(e))
-    
+
     @staticmethod
     def get_voice(voice_id: str) -> VoiceRecord:
         """
         Get a voice record by ID.
-        
+
         Args:
             voice_id: Voice identifier
-            
+
         Returns:
             VoiceRecord
-            
+
         Raises:
             VoiceNotFoundError: If voice not found
         """
@@ -92,7 +100,7 @@ class VoiceService:
         if not record:
             raise VoiceNotFoundError(voice_id)
         return record
-    
+
     @staticmethod
     async def synthesize(
         voice_id: str,
@@ -102,16 +110,16 @@ class VoiceService:
     ) -> bytes:
         """
         Synthesize speech using a cloned voice.
-        
+
         Args:
             voice_id: Voice identifier
             text: Text to synthesize
             format: Output format ("wav" or "mp3")
             sample_rate: Target sample rate
-            
+
         Returns:
             Audio bytes in the specified format
-            
+
         Raises:
             VoiceNotFoundError: If voice not found
             SynthesisError: If synthesis fails
@@ -120,17 +128,17 @@ class VoiceService:
         record = storage.get(voice_id)
         if not record:
             raise VoiceNotFoundError(voice_id)
-        
+
         # Validate text
         if not text or not text.strip():
             raise SynthesisError("Text cannot be empty")
-        
+
         try:
             # Load embedding (in production, load from disk or database)
             # For now, we'll need to recompute or load from the stored path
             # This is a placeholder - implement based on your storage strategy
             embedding, _, _ = await compute_speaker_embedding(record.file_path)
-            
+
             # Synthesize speech
             audio_bytes = await synthesize_speech(
                 embedding=embedding,
@@ -138,9 +146,9 @@ class VoiceService:
                 sample_rate=sample_rate,
                 format=format,
             )
-            
+
             return audio_bytes
-            
+
         except VoiceNotFoundError:
             raise
         except Exception as e:
@@ -149,4 +157,3 @@ class VoiceService:
 
 # Global service instance
 voice_service = VoiceService()
-
